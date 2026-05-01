@@ -44,6 +44,11 @@ const initialForm = {
   ingredients: '',
 }
 
+const plannerViews = [
+  { id: 'all', label: 'All days' },
+  { id: 'planned', label: 'Planned only' },
+]
+
 function App() {
   const [meals, setMeals] = useState(() => {
     const storedMeals = localStorage.getItem('smartmeal-meals')
@@ -55,6 +60,7 @@ function App() {
   })
   const [editingMealId, setEditingMealId] = useState(null)
   const [selectedDay, setSelectedDay] = useState(days[0])
+  const [plannerView, setPlannerView] = useState('all')
   const [form, setForm] = useState(initialForm)
 
   useEffect(() => {
@@ -109,6 +115,30 @@ function App() {
     )
   }, [meals])
 
+  const plannedDays = useMemo(
+    () => days.filter((day) => mealsByDay[day].length > 0),
+    [mealsByDay],
+  )
+
+  const visibleDays = plannerView === 'planned' && plannedDays.length > 0
+    ? plannedDays
+    : days
+
+  const busiestDay = useMemo(() => {
+    return days.reduce(
+      (currentBusiestDay, day) => {
+        const mealCount = mealsByDay[day].length
+
+        if (mealCount > currentBusiestDay.mealCount) {
+          return { day, mealCount }
+        }
+
+        return currentBusiestDay
+      },
+      { day: 'No plans yet', mealCount: 0 },
+    )
+  }, [mealsByDay])
+
   const weeklyStats = useMemo(() => {
     const completedShoppingItems = shoppingList.filter(
       (item) => purchasedItems[item.id],
@@ -122,7 +152,17 @@ function App() {
     }
   }, [meals, mealsByDay, purchasedItems, shoppingList])
 
-  const mealsForSelectedDay = mealsByDay[selectedDay]
+  const activeSelectedDay =
+    plannerView === 'planned' &&
+    plannedDays.length > 0 &&
+    !plannedDays.includes(selectedDay)
+      ? plannedDays[0]
+      : selectedDay
+
+  const mealsForSelectedDay = mealsByDay[activeSelectedDay]
+  const selectedDayCategories = [
+    ...new Set(mealsForSelectedDay.map((meal) => meal.category)),
+  ]
 
   const handleInputChange = (event) => {
     const { name, value } = event.target
@@ -197,6 +237,20 @@ function App() {
     }))
   }
 
+  const handleFocusNextPlannedDay = () => {
+    if (plannedDays.length === 0) {
+      return
+    }
+
+    const selectedDayIndex = plannedDays.indexOf(activeSelectedDay)
+    const nextDay =
+      selectedDayIndex >= 0 && selectedDayIndex < plannedDays.length - 1
+        ? plannedDays[selectedDayIndex + 1]
+        : plannedDays[0]
+
+    setSelectedDay(nextDay)
+  }
+
   return (
     <main className="app-shell">
       <section className="hero-band">
@@ -237,25 +291,87 @@ function App() {
               <h2>Weekly meal overview</h2>
             </div>
 
-            <div className="day-tabs" role="tablist" aria-label="Week days">
-              {days.map((day) => (
-                <button
-                  key={day}
-                  type="button"
-                  className={day === selectedDay ? 'day-tab active' : 'day-tab'}
-                  onClick={() => setSelectedDay(day)}
-                >
-                  {day.slice(0, 3)}
-                </button>
-              ))}
+            <div className="planner-toolbar">
+              <div className="view-switch" role="tablist" aria-label="Planner view">
+                {plannerViews.map((view) => (
+                  <button
+                    key={view.id}
+                    type="button"
+                    className={
+                      plannerView === view.id ? 'view-switch-button active' : 'view-switch-button'
+                    }
+                    onClick={() => setPlannerView(view.id)}
+                  >
+                    {view.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="day-tabs" role="tablist" aria-label="Week days">
+                {days.map((day) => (
+                  <button
+                    key={day}
+                    type="button"
+                    className={day === activeSelectedDay ? 'day-tab active' : 'day-tab'}
+                    onClick={() => setSelectedDay(day)}
+                  >
+                    {day.slice(0, 3)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="planner-focus-panel">
+            <div className="planner-focus-main">
+              <p className="section-label">Focused day</p>
+              <h3>{activeSelectedDay}</h3>
+              <p className="planner-focus-copy">
+                {mealsForSelectedDay.length > 0
+                  ? `${mealsForSelectedDay.length} meals planned across ${selectedDayCategories.length} categories.`
+                  : 'This day is still open, so you can schedule something quickly.'}
+              </p>
+
+              <div className="planner-highlight-list">
+                {mealsForSelectedDay.length > 0 ? (
+                  mealsForSelectedDay.map((meal) => (
+                    <span key={meal.id} className="planner-highlight-pill">
+                      {meal.category}: {meal.name}
+                    </span>
+                  ))
+                ) : (
+                  <span className="planner-highlight-pill empty">
+                    No meals planned yet
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="planner-focus-side">
+              <article className="planner-mini-stat">
+                <span>Visible days</span>
+                <strong>{visibleDays.length}</strong>
+              </article>
+              <article className="planner-mini-stat">
+                <span>Busiest day</span>
+                <strong>{busiestDay.day}</strong>
+                <small>{busiestDay.mealCount} planned meals</small>
+              </article>
+              <button
+                type="button"
+                className="secondary-button planner-action"
+                onClick={handleFocusNextPlannedDay}
+              >
+                Jump to next planned day
+              </button>
             </div>
           </div>
 
           <div className="planner-grid">
-            {days.map((day) => (
+            {visibleDays.map((day) => (
               <article
                 key={day}
-                className={day === selectedDay ? 'day-column focused' : 'day-column'}
+                className={day === activeSelectedDay ? 'day-column focused' : 'day-column'}
               >
                 <div className="day-column-header">
                   <div>
@@ -384,7 +500,7 @@ function App() {
             <div className="section-heading compact">
               <div>
                 <p className="section-label">Today view</p>
-                <h2>{selectedDay} meals</h2>
+                <h2>{activeSelectedDay} meals</h2>
               </div>
             </div>
 
