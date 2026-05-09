@@ -49,6 +49,45 @@ const plannerViews = [
   { id: 'planned', label: 'Planned only' },
 ]
 
+const validateMealForm = (formValues) => {
+  const mealName = formValues.name.trim()
+  const rawIngredients = formValues.ingredients
+    .split(',')
+    .map((ingredient) => ingredient.trim())
+    .filter(Boolean)
+  const errors = {}
+
+  if (!mealName) {
+    errors.name = 'Enter a meal name before saving.'
+  } else if (mealName.length < 2) {
+    errors.name = 'Meal name should have at least 2 characters.'
+  } else if (mealName.length > 60) {
+    errors.name = 'Meal name should be 60 characters or less.'
+  }
+
+  if (!days.includes(formValues.day)) {
+    errors.day = 'Choose a valid day.'
+  }
+
+  if (!mealCategories.includes(formValues.category)) {
+    errors.category = 'Choose a valid category.'
+  }
+
+  if (rawIngredients.length === 0) {
+    errors.ingredients = 'Add at least one ingredient, separated with commas.'
+  } else if (rawIngredients.length > 12) {
+    errors.ingredients = 'Keep the list to 12 ingredients or fewer.'
+  } else if (rawIngredients.some((ingredient) => ingredient.length > 40)) {
+    errors.ingredients = 'Each ingredient should be 40 characters or less.'
+  }
+
+  return {
+    errors,
+    ingredients: rawIngredients,
+    mealName,
+  }
+}
+
 function App() {
   const [meals, setMeals] = useState(() => {
     const storedMeals = localStorage.getItem('smartmeal-meals')
@@ -62,6 +101,7 @@ function App() {
   const [selectedDay, setSelectedDay] = useState(days[0])
   const [plannerView, setPlannerView] = useState('all')
   const [form, setForm] = useState(initialForm)
+  const [formErrors, setFormErrors] = useState({})
 
   useEffect(() => {
     localStorage.setItem('smartmeal-meals', JSON.stringify(meals))
@@ -163,30 +203,37 @@ function App() {
   const selectedDayCategories = [
     ...new Set(mealsForSelectedDay.map((meal) => meal.category)),
   ]
+  const todaysDay = days[(new Date().getDay() + 6) % 7]
+  const toDayView = mealsByDay[todaysDay] ?? []
+  
 
   const handleInputChange = (event) => {
     const { name, value } = event.target
-    setForm((currentForm) => ({
-      ...currentForm,
+    const nextForm = {
+      ...form,
       [name]: value,
-    }))
+    }
+
+    setForm(nextForm)
+
+    if (formErrors[name]) {
+      setFormErrors(validateMealForm(nextForm).errors)
+    }
   }
 
   const resetForm = () => {
     setForm(initialForm)
+    setFormErrors({})
     setEditingMealId(null)
   }
 
   const handleSubmit = (event) => {
     event.preventDefault()
 
-    const mealName = form.name.trim()
-    const ingredients = form.ingredients
-      .split(',')
-      .map((ingredient) => ingredient.trim())
-      .filter(Boolean)
+    const { errors, ingredients, mealName } = validateMealForm(form)
 
-    if (!mealName || ingredients.length === 0) {
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors)
       return
     }
 
@@ -214,6 +261,7 @@ function App() {
   const handleEditMeal = (meal) => {
     setEditingMealId(meal.id)
     setSelectedDay(meal.day)
+    setFormErrors({})
     setForm({
       name: meal.name,
       day: meal.day,
@@ -439,19 +487,38 @@ function App() {
                   value={form.name}
                   onChange={handleInputChange}
                   placeholder="Example: Chicken curry"
+                  maxLength="60"
+                  aria-invalid={Boolean(formErrors.name)}
+                  aria-describedby={formErrors.name ? 'meal-name-error' : undefined}
                 />
+                {formErrors.name && (
+                  <span className="field-error" id="meal-name-error" role="alert">
+                    {formErrors.name}
+                  </span>
+                )}
               </label>
 
               <div className="form-row">
                 <label>
                   Day
-                  <select name="day" value={form.day} onChange={handleInputChange}>
+                  <select
+                    name="day"
+                    value={form.day}
+                    onChange={handleInputChange}
+                    aria-invalid={Boolean(formErrors.day)}
+                    aria-describedby={formErrors.day ? 'meal-day-error' : undefined}
+                  >
                     {days.map((day) => (
                       <option key={day} value={day}>
                         {day}
                       </option>
                     ))}
                   </select>
+                  {formErrors.day && (
+                    <span className="field-error" id="meal-day-error" role="alert">
+                      {formErrors.day}
+                    </span>
+                  )}
                 </label>
 
                 <label>
@@ -460,6 +527,10 @@ function App() {
                     name="category"
                     value={form.category}
                     onChange={handleInputChange}
+                    aria-invalid={Boolean(formErrors.category)}
+                    aria-describedby={
+                      formErrors.category ? 'meal-category-error' : undefined
+                    }
                   >
                     {mealCategories.map((category) => (
                       <option key={category} value={category}>
@@ -467,6 +538,15 @@ function App() {
                       </option>
                     ))}
                   </select>
+                  {formErrors.category && (
+                    <span
+                      className="field-error"
+                      id="meal-category-error"
+                      role="alert"
+                    >
+                      {formErrors.category}
+                    </span>
+                  )}
                 </label>
               </div>
 
@@ -478,7 +558,21 @@ function App() {
                   onChange={handleInputChange}
                   rows="4"
                   placeholder="tomatoes, pasta, mozzarella"
+                  maxLength="240"
+                  aria-invalid={Boolean(formErrors.ingredients)}
+                  aria-describedby={
+                    formErrors.ingredients ? 'meal-ingredients-error' : undefined
+                  }
                 />
+                {formErrors.ingredients && (
+                  <span
+                    className="field-error"
+                    id="meal-ingredients-error"
+                    role="alert"
+                  >
+                    {formErrors.ingredients}
+                  </span>
+                )}
               </label>
 
               <div className="form-actions">
@@ -500,13 +594,13 @@ function App() {
             <div className="section-heading compact">
               <div>
                 <p className="section-label">Today view</p>
-                <h2>{activeSelectedDay} meals</h2>
+                <h2>{todaysDay} meals</h2>
               </div>
             </div>
 
             <div className="selected-day-list">
-              {mealsForSelectedDay.length > 0 ? (
-                mealsForSelectedDay.map((meal) => (
+              {toDayView.length > 0 ? (
+                toDayView.map((meal) => (
                   <div key={meal.id} className="selected-day-item">
                     <strong>{meal.name}</strong>
                     <span>{meal.category}</span>

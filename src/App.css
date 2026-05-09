@@ -322,6 +322,12 @@
 
 .meal-actions {
   margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.form-row label {
+  flex: 1;
+  min-width: 0;
 }
 
 .ghost-button,
@@ -375,8 +381,21 @@
   color: #2e241b;
 }
 
+.meal-form input[aria-invalid='true'],
+.meal-form select[aria-invalid='true'],
+.meal-form textarea[aria-invalid='true'] {
+  border-color: #b94a3a;
+  background: #fff8f6;
+}
+
 .meal-form textarea {
   resize: vertical;
+}
+
+.field-error {
+  color: #9b3a2d;
+  font-size: 0.84rem;
+  line-height: 1.35;
 }
 
 .selected-day-list,
@@ -455,6 +474,8 @@
 @media (max-width: 980px) {
   .planner-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: none;
+    min-height: 0;
   }
 }
 
@@ -484,10 +505,56 @@
     grid-template-columns: 1fr 1fr;
   }
 
+  .planner-toolbar {
+    width: 100%;
+    justify-items: stretch;
+  }
+
   .view-switch,
   .day-tabs {
     width: 100%;
     justify-content: flex-start;
     overflow-x: auto;
+  }
+
+  .view-switch-button {
+    flex: 1;
+    white-space: nowrap;
+  }
+
+  .day-tab {
+    flex: 0 0 auto;
+  }
+
+  .primary-button,
+  .secondary-button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 460px) {
+  .hero-band,
+  .workspace {
+    width: min(100% - 24px, 1120px);
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .planner-section,
+  .tool-panel {
+    padding: 14px;
+  }
+
+  .day-column-header,
+  .meal-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .link-button,
+  .ghost-button {
+    width: 100%;
   }
 }
