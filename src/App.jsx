@@ -49,6 +49,87 @@ const plannerViews = [
   { id: 'planned', label: 'Planned only' },
 ]
 
+const reportDateFormatter = new Intl.DateTimeFormat('en-GB', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+})
+
+const getCurrentWeekRange = () => {
+  const today = new Date()
+  const mondayOffset = (today.getDay() + 6) % 7
+  const start = new Date(today)
+
+  start.setDate(today.getDate() - mondayOffset)
+  const end = new Date(start)
+  end.setDate(start.getDate() + 6)
+
+  return { start, end }
+}
+
+const getReportFileDate = (date) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
+}
+
+const parseReportDate = (value) => {
+  const [year, month, day] = value.split('-').map(Number)
+  const date = new Date(year, month - 1, day, 12)
+
+  if (
+    !year ||
+    !month ||
+    !day ||
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return null
+  }
+
+  return date
+}
+
+const validateReportRange = (range) => {
+  if (!range.from || !range.to) {
+    return { error: 'Choose both the start and end date.' }
+  }
+
+  const start = parseReportDate(range.from)
+  const end = parseReportDate(range.to)
+
+  if (!start || !end) {
+    return { error: 'Choose valid report dates.' }
+  }
+
+  if (start > end) {
+    return { error: 'The start date cannot be later than the end date.' }
+  }
+
+  const dayCount = Math.round((end - start) / 86400000) + 1
+
+  if (dayCount > 366) {
+    return { error: 'Choose a date range of up to 366 days.' }
+  }
+
+  return { start, end, dayCount, error: '' }
+}
+
+const getDatesInRange = (start, end) => {
+  const dates = []
+  const currentDate = new Date(start)
+
+  while (currentDate <= end) {
+    dates.push(new Date(currentDate))
+    currentDate.setDate(currentDate.getDate() + 1)
+  }
+
+  return dates
+}
+
 const validateMealForm = (formValues) => {
   const mealName = formValues.name.trim()
   const rawIngredients = formValues.ingredients
@@ -102,6 +183,16 @@ function App() {
   const [plannerView, setPlannerView] = useState('all')
   const [form, setForm] = useState(initialForm)
   const [formErrors, setFormErrors] = useState({})
+  const [reportStatus, setReportStatus] = useState('')
+  const [reportError, setReportError] = useState('')
+  const [reportRange, setReportRange] = useState(() => {
+    const currentWeek = getCurrentWeekRange()
+
+    return {
+      from: getReportFileDate(currentWeek.start),
+      to: getReportFileDate(currentWeek.end),
+    }
+  })
 
   useEffect(() => {
     localStorage.setItem('smartmeal-meals', JSON.stringify(meals))
@@ -205,7 +296,80 @@ function App() {
   ]
   const todaysDay = days[(new Date().getDay() + 6) % 7]
   const toDayView = mealsByDay[todaysDay] ?? []
-  
+  const reportRangeValidation = useMemo(
+    () => validateReportRange(reportRange),
+    [reportRange],
+  )
+  const reportSchedule = useMemo(() => {
+    if (reportRangeValidation.error) {
+      return []
+    }
+
+    return getDatesInRange(
+      reportRangeValidation.start,
+      reportRangeValidation.end,
+    ).map((date) => {
+      const day = days[(date.getDay() + 6) % 7]
+
+      return {
+        date,
+        day,
+        meals: mealsByDay[day],
+      }
+    })
+  }, [mealsByDay, reportRangeValidation])
+  const reportMeals = useMemo(
+    () => reportSchedule.flatMap((entry) => entry.meals),
+    [reportSchedule],
+  )
+  const reportShoppingList = useMemo(() => {
+    const uniqueItems = new Map()
+
+    reportMeals.forEach((meal) => {
+      meal.ingredients.forEach((ingredient) => {
+        const normalizedIngredient = ingredient.trim().toLowerCase()
+
+        if (!normalizedIngredient) {
+          return
+        }
+
+        if (!uniqueItems.has(normalizedIngredient)) {
+          uniqueItems.set(normalizedIngredient, {
+            id: normalizedIngredient,
+            name: ingredient.trim(),
+            plannedMeals: new Set(),
+          })
+        }
+
+        uniqueItems.get(normalizedIngredient).plannedMeals.add(meal.name)
+      })
+    })
+
+    return [...uniqueItems.values()]
+      .map((item) => ({
+        ...item,
+        plannedMeals: [...item.plannedMeals],
+      }))
+      .sort((firstItem, secondItem) =>
+        firstItem.name.localeCompare(secondItem.name),
+      )
+  }, [reportMeals])
+  const reportStats = useMemo(() => {
+    const completedShoppingItems = reportShoppingList.filter(
+      (item) => purchasedItems[item.id],
+    ).length
+
+    return {
+      totalMeals: reportMeals.length,
+      activeDays: reportSchedule.filter((entry) => entry.meals.length > 0)
+        .length,
+      totalIngredients: reportShoppingList.length,
+      completedShoppingItems,
+    }
+  }, [purchasedItems, reportMeals, reportSchedule, reportShoppingList])
+  const reportLabel = reportRangeValidation.error
+    ? 'Choose date range'
+    : `${reportDateFormatter.format(reportRangeValidation.start)} - ${reportDateFormatter.format(reportRangeValidation.end)}`
 
   const handleInputChange = (event) => {
     const { name, value } = event.target
@@ -297,6 +461,85 @@ function App() {
         : plannedDays[0]
 
     setSelectedDay(nextDay)
+  }
+
+  const handleReportRangeChange = (event) => {
+    const { name, value } = event.target
+
+    setReportRange((currentRange) => ({
+      ...currentRange,
+      [name]: value,
+    }))
+    setReportError('')
+    setReportStatus('')
+  }
+
+  const handleGenerateWeeklyReport = () => {
+    const validation = validateReportRange(reportRange)
+
+    if (validation.error) {
+      setReportError(validation.error)
+      setReportStatus('')
+      return
+    }
+
+    const dailyPlan = reportSchedule.flatMap(({ date, day, meals: dayMeals }) => {
+      const dateHeading = `${day}, ${reportDateFormatter.format(date)}`
+
+      if (dayMeals.length === 0) {
+        return [dateHeading, '  No meals planned.']
+      }
+
+      return [
+        dateHeading,
+        ...dayMeals.map(
+          (meal) =>
+            `  - ${meal.category}: ${meal.name} (${meal.ingredients.join(', ')})`,
+        ),
+      ]
+    })
+
+    const shoppingItems =
+      reportShoppingList.length > 0
+        ? reportShoppingList.map(
+            (item) =>
+              `  [${purchasedItems[item.id] ? 'x' : ' '}] ${item.name} - ${item.plannedMeals.join(', ')}`,
+          )
+        : ['  No shopping items.']
+
+    const report = [
+      'SmartMeal Meal Report',
+      `Period: ${reportLabel}`,
+      `Generated: ${reportDateFormatter.format(new Date())}`,
+      '',
+      'SUMMARY',
+      `Planned meal entries: ${reportStats.totalMeals}`,
+      `Days with meals: ${reportStats.activeDays} of ${validation.dayCount}`,
+      `Shopping items: ${reportStats.totalIngredients}`,
+      `Bought items: ${reportStats.completedShoppingItems}`,
+      '',
+      'MEAL PLAN',
+      ...dailyPlan,
+      '',
+      'SHOPPING LIST',
+      ...shoppingItems,
+      '',
+    ].join('\n')
+
+    const reportBlob = new Blob([report], {
+      type: 'text/plain;charset=utf-8',
+    })
+    const reportUrl = URL.createObjectURL(reportBlob)
+    const downloadLink = document.createElement('a')
+
+    downloadLink.href = reportUrl
+    downloadLink.download = `smartmeal-report-${reportRange.from}-to-${reportRange.to}.txt`
+    document.body.appendChild(downloadLink)
+    downloadLink.click()
+    downloadLink.remove()
+    URL.revokeObjectURL(reportUrl)
+    setReportError('')
+    setReportStatus('Report generated successfully.')
   }
 
   return (
@@ -641,6 +884,78 @@ function App() {
                 </p>
               )}
             </div>
+          </section>
+
+          <section className="tool-panel">
+            <div className="section-heading compact">
+              <div>
+                <p className="section-label">Weekly report</p>
+                <h2>{reportLabel}</h2>
+              </div>
+            </div>
+
+            <div className="report-date-range">
+              <label>
+                From
+                <input
+                  type="date"
+                  name="from"
+                  value={reportRange.from}
+                  max={reportRange.to || undefined}
+                  onChange={handleReportRangeChange}
+                  aria-invalid={Boolean(reportError)}
+                  aria-describedby={reportError ? 'report-range-error' : undefined}
+                />
+              </label>
+              <label>
+                To
+                <input
+                  type="date"
+                  name="to"
+                  value={reportRange.to}
+                  min={reportRange.from || undefined}
+                  onChange={handleReportRangeChange}
+                  aria-invalid={Boolean(reportError)}
+                  aria-describedby={reportError ? 'report-range-error' : undefined}
+                />
+              </label>
+            </div>
+
+            {reportError && (
+              <p className="field-error report-error" id="report-range-error" role="alert">
+                {reportError}
+              </p>
+            )}
+
+            <div className="report-summary">
+              <div>
+                <span>Meal entries</span>
+                <strong>{reportStats.totalMeals}</strong>
+              </div>
+              <div>
+                <span>Days with meals</span>
+                <strong>{reportStats.activeDays}</strong>
+              </div>
+              <div>
+                <span>Shopping progress</span>
+                <strong>
+                  {reportStats.completedShoppingItems}/
+                  {reportStats.totalIngredients}
+                </strong>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="primary-button report-button"
+              onClick={handleGenerateWeeklyReport}
+            >
+              Generate report
+            </button>
+
+            <p className="report-status" role="status" aria-live="polite">
+              {reportStatus}
+            </p>
           </section>
         </aside>
       </section>

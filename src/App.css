@@ -404,6 +404,78 @@
   gap: 10px;
 }
 
+.report-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.report-date-range {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.report-date-range label {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  color: #5f5345;
+  font-size: 0.88rem;
+}
+
+.report-date-range input {
+  width: 100%;
+  min-width: 0;
+  padding: 10px 11px;
+  border: 1px solid rgba(95, 77, 54, 0.16);
+  border-radius: 8px;
+  background: #fffdfa;
+  color: #2e241b;
+}
+
+.report-date-range input[aria-invalid='true'] {
+  border-color: #b94a3a;
+  background: #fff8f6;
+}
+
+.report-error {
+  margin: -4px 0 14px;
+}
+
+.report-summary div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgba(126, 101, 74, 0.1);
+  border-radius: 8px;
+  background: #faf6ee;
+}
+
+.report-summary span {
+  color: #7b6c5d;
+  font-size: 0.78rem;
+}
+
+.report-summary strong {
+  color: #2d2118;
+  font-size: 1.08rem;
+}
+
+.report-button {
+  width: 100%;
+}
+
+.report-status {
+  min-height: 1.25rem;
+  margin: 8px 0 0;
+  color: #416b55;
+  font-size: 0.84rem;
+}
+
 .selected-day-item,
 .shopping-item {
   display: flex;
@@ -529,6 +601,14 @@
   .primary-button,
   .secondary-button {
     width: 100%;
+  }
+
+  .report-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .report-date-range {
+    grid-template-columns: 1fr;
   }
 }
 
