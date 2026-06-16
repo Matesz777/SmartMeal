@@ -137,6 +137,46 @@ const getDatesInRange = (start, end) => {
   return dates
 }
 
+const buildShoppingListFromMeals = (mealsToAggregate) => {
+  const itemsByIngredient = new Map()
+
+  mealsToAggregate.forEach((meal) => {
+    meal.ingredients.forEach((ingredient) => {
+      const normalizedIngredient = ingredient.trim().toLowerCase()
+
+      if (!normalizedIngredient) {
+        return
+      }
+
+      if (!itemsByIngredient.has(normalizedIngredient)) {
+        itemsByIngredient.set(normalizedIngredient, {
+          id: normalizedIngredient,
+          name: ingredient.trim(),
+          plannedMeals: new Set(),
+          uses: 0,
+        })
+      }
+
+      const item = itemsByIngredient.get(normalizedIngredient)
+
+      item.uses += 1
+      item.plannedMeals.add(meal.name)
+    })
+  })
+
+  return [...itemsByIngredient.values()]
+    .map((item) => ({
+      id: item.id,
+      name: item.name,
+      uses: item.uses,
+      mealCount: item.plannedMeals.size,
+      plannedMeals: [...item.plannedMeals],
+    }))
+    .sort((firstItem, secondItem) =>
+      firstItem.name.localeCompare(secondItem.name),
+    )
+}
+
 const validateMealForm = (formValues) => {
   const mealName = formValues.name.trim()
   const rawIngredients = formValues.ingredients
@@ -225,33 +265,21 @@ function App() {
     }, {})
   }, [meals])
 
-  const shoppingList = useMemo(() => {
-    const uniqueItems = new Map()
+  const shoppingList = useMemo(() => buildShoppingListFromMeals(meals), [meals])
 
-    meals.forEach((meal) => {
-      meal.ingredients.forEach((ingredient) => {
-        const normalizedIngredient = ingredient.trim().toLowerCase()
+  useEffect(() => {
+    const validItemIds = new Set(shoppingList.map((item) => item.id))
 
-        if (!normalizedIngredient) {
-          return
-        }
+    setPurchasedItems((currentItems) => {
+      const prunedItems = Object.fromEntries(
+        Object.entries(currentItems).filter(([itemId]) => validItemIds.has(itemId)),
+      )
 
-        if (!uniqueItems.has(normalizedIngredient)) {
-          uniqueItems.set(normalizedIngredient, {
-            id: normalizedIngredient,
-            name: ingredient.trim(),
-            plannedMeals: [],
-          })
-        }
-
-        uniqueItems.get(normalizedIngredient).plannedMeals.push(meal.name)
-      })
+      return Object.keys(prunedItems).length === Object.keys(currentItems).length
+        ? currentItems
+        : prunedItems
     })
-
-    return [...uniqueItems.values()].sort((firstItem, secondItem) =>
-      firstItem.name.localeCompare(secondItem.name),
-    )
-  }, [meals])
+  }, [shoppingList])
 
   const plannedDays = useMemo(
     () => days.filter((day) => mealsByDay[day].length > 0),
@@ -341,38 +369,10 @@ function App() {
     () => reportSchedule.flatMap((entry) => entry.meals),
     [reportSchedule],
   )
-  const reportShoppingList = useMemo(() => {
-    const uniqueItems = new Map()
-
-    reportMeals.forEach((meal) => {
-      meal.ingredients.forEach((ingredient) => {
-        const normalizedIngredient = ingredient.trim().toLowerCase()
-
-        if (!normalizedIngredient) {
-          return
-        }
-
-        if (!uniqueItems.has(normalizedIngredient)) {
-          uniqueItems.set(normalizedIngredient, {
-            id: normalizedIngredient,
-            name: ingredient.trim(),
-            plannedMeals: new Set(),
-          })
-        }
-
-        uniqueItems.get(normalizedIngredient).plannedMeals.add(meal.name)
-      })
-    })
-
-    return [...uniqueItems.values()]
-      .map((item) => ({
-        ...item,
-        plannedMeals: [...item.plannedMeals],
-      }))
-      .sort((firstItem, secondItem) =>
-        firstItem.name.localeCompare(secondItem.name),
-      )
-  }, [reportMeals])
+  const reportShoppingList = useMemo(
+    () => buildShoppingListFromMeals(reportMeals),
+    [reportMeals],
+  )
   const reportStats = useMemo(() => {
     const completedShoppingItems = reportShoppingList.filter(
       (item) => purchasedItems[item.id],
@@ -593,7 +593,7 @@ function App() {
       reportShoppingList.length > 0
         ? reportShoppingList.map(
             (item) =>
-              `  [${purchasedItems[item.id] ? 'x' : ' '}] ${item.name} - ${item.plannedMeals.join(', ')}`,
+              `  [${purchasedItems[item.id] ? 'x' : ' '}] ${item.name} (x${item.uses}, ${item.mealCount} meals) - ${item.plannedMeals.join(', ')}`,
           )
         : ['  No shopping items.']
 
@@ -1015,7 +1015,9 @@ function App() {
                     />
                     <span>
                       <strong>{item.name}</strong>
-                      <small>{item.plannedMeals.join(', ')}</small>
+                      <small>
+                        x{item.uses} in {item.mealCount} meals: {item.plannedMeals.join(', ')}
+                      </small>
                     </span>
                   </label>
                 ))
