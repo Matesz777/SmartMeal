@@ -50,6 +50,12 @@ const plannerViews = [
   { id: 'planned', label: 'Planned only' },
 ]
 
+const shoppingFilters = [
+  { id: 'all', label: 'All' },
+  { id: 'unpurchased', label: 'Not bought' },
+  { id: 'purchased', label: 'Bought' },
+]
+
 const reportDateFormatter = new Intl.DateTimeFormat('en-GB', {
   day: 'numeric',
   month: 'short',
@@ -181,6 +187,7 @@ function App() {
   const [editingMealId, setEditingMealId] = useState(null)
   const [selectedDay, setSelectedDay] = useState(days[0])
   const [plannerView, setPlannerView] = useState('all')
+  const [shoppingFilter, setShoppingFilter] = useState('all')
   const [form, setForm] = useState(initialForm)
   const [formErrors, setFormErrors] = useState({})
   const [reportStatus, setReportStatus] = useState('')
@@ -282,6 +289,18 @@ function App() {
       completedShoppingItems,
     }
   }, [meals, mealsByDay, purchasedItems, shoppingList])
+
+  const filteredShoppingList = useMemo(() => {
+    if (shoppingFilter === 'purchased') {
+      return shoppingList.filter((item) => purchasedItems[item.id])
+    }
+
+    if (shoppingFilter === 'unpurchased') {
+      return shoppingList.filter((item) => !purchasedItems[item.id])
+    }
+
+    return shoppingList
+  }, [purchasedItems, shoppingFilter, shoppingList])
 
   const activeSelectedDay =
     plannerView === 'planned' &&
@@ -968,9 +987,26 @@ function App() {
               </div>
             </div>
 
+            <div className="shopping-filter" role="tablist" aria-label="Shopping filter">
+              {shoppingFilters.map((filter) => (
+                <button
+                  key={filter.id}
+                  type="button"
+                  className={
+                    shoppingFilter === filter.id
+                      ? 'view-switch-button active'
+                      : 'view-switch-button'
+                  }
+                  onClick={() => setShoppingFilter(filter.id)}
+                >
+                  {filter.label}
+                </button>
+              ))}
+            </div>
+
             <div className="shopping-list">
-              {shoppingList.length > 0 ? (
-                shoppingList.map((item) => (
+              {filteredShoppingList.length > 0 ? (
+                filteredShoppingList.map((item) => (
                   <label key={item.id} className="shopping-item">
                     <input
                       type="checkbox"
@@ -983,6 +1019,10 @@ function App() {
                     </span>
                   </label>
                 ))
+              ) : shoppingList.length > 0 ? (
+                <p className="empty-state">
+                  No items in this filter.
+                </p>
               ) : (
                 <p className="empty-state">
                   Add meals first to generate the shopping list.

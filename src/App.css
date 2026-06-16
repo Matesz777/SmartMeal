@@ -143,6 +143,15 @@
   color: #fff7eb;
 }
 
+.shopping-filter {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 8px;
+  background: #efe8dc;
+  margin-bottom: 12px;
+}
+
 .day-tab,
 .ghost-button,
 .link-button,
