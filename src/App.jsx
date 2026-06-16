@@ -1006,21 +1006,29 @@ function App() {
 
             <div className="shopping-list">
               {filteredShoppingList.length > 0 ? (
-                filteredShoppingList.map((item) => (
-                  <label key={item.id} className="shopping-item">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(purchasedItems[item.id])}
-                      onChange={() => handleTogglePurchased(item.id)}
-                    />
-                    <span>
-                      <strong>{item.name}</strong>
-                      <small>
-                        x{item.uses} in {item.mealCount} meals: {item.plannedMeals.join(', ')}
-                      </small>
-                    </span>
-                  </label>
-                ))
+                filteredShoppingList.map((item) => {
+                  const isPurchased = Boolean(purchasedItems[item.id])
+
+                  return (
+                    <label
+                      key={item.id}
+                      className={isPurchased ? 'shopping-item purchased' : 'shopping-item'}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isPurchased}
+                        onChange={() => handleTogglePurchased(item.id)}
+                      />
+                      <span>
+                        <strong>{item.name}</strong>
+                        <small>
+                          x{item.uses} in {item.mealCount} meals: {item.plannedMeals.join(', ')}
+                        </small>
+                      </span>
+                      {isPurchased && <em className="shopping-status">Bought</em>}
+                    </label>
+                  )
+                })
               ) : shoppingList.length > 0 ? (
                 <p className="empty-state">
                   No items in this filter.

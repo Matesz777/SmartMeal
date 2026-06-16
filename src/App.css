@@ -562,6 +562,34 @@
   gap: 4px;
 }
 
+.shopping-item.purchased {
+  background: #eef6ef;
+  border-color: rgba(65, 107, 85, 0.25);
+}
+
+.shopping-item.purchased strong {
+  color: #4d5d52;
+  text-decoration: line-through;
+}
+
+.shopping-item.purchased small {
+  color: #688072;
+}
+
+.shopping-status {
+  margin-left: auto;
+  font-style: normal;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #2f6247;
+  background: rgba(95, 151, 113, 0.2);
+  border: 1px solid rgba(47, 98, 71, 0.22);
+  border-radius: 999px;
+  padding: 4px 8px;
+}
+
 .shopping-item small {
   color: #776b5f;
 }
