@@ -41,7 +41,8 @@ const initialForm = {
   name: '',
   day: days[0],
   category: mealCategories[0],
-  ingredients: '',
+  ingredientInput: '',
+  ingredients: [],
 }
 
 const plannerViews = [
@@ -133,7 +134,6 @@ const getDatesInRange = (start, end) => {
 const validateMealForm = (formValues) => {
   const mealName = formValues.name.trim()
   const rawIngredients = formValues.ingredients
-    .split(',')
     .map((ingredient) => ingredient.trim())
     .filter(Boolean)
   const errors = {}
@@ -430,8 +430,79 @@ function App() {
       name: meal.name,
       day: meal.day,
       category: meal.category,
-      ingredients: meal.ingredients.join(', '),
+      ingredientInput: '',
+      ingredients: meal.ingredients,
     })
+  }
+
+  const handleAddIngredient = () => {
+    const nextIngredient = form.ingredientInput.trim()
+
+    if (!nextIngredient) {
+      return
+    }
+
+    if (nextIngredient.length > 40) {
+      setFormErrors((currentErrors) => ({
+        ...currentErrors,
+        ingredients: 'Each ingredient should be 40 characters or less.',
+      }))
+      return
+    }
+
+    if (form.ingredients.length >= 12) {
+      setFormErrors((currentErrors) => ({
+        ...currentErrors,
+        ingredients: 'Keep the list to 12 ingredients or fewer.',
+      }))
+      return
+    }
+
+    const normalizedIngredient = nextIngredient.toLowerCase()
+    const ingredientAlreadyAdded = form.ingredients.some(
+      (ingredient) => ingredient.toLowerCase() === normalizedIngredient,
+    )
+
+    if (ingredientAlreadyAdded) {
+      setFormErrors((currentErrors) => ({
+        ...currentErrors,
+        ingredients: 'This ingredient is already assigned to the meal.',
+      }))
+      return
+    }
+
+    setForm((currentForm) => ({
+      ...currentForm,
+      ingredientInput: '',
+      ingredients: [...currentForm.ingredients, nextIngredient],
+    }))
+    setFormErrors((currentErrors) => ({
+      ...currentErrors,
+      ingredients: '',
+    }))
+  }
+
+  const handleRemoveIngredient = (ingredientToRemove) => {
+    setForm((currentForm) => ({
+      ...currentForm,
+      ingredients: currentForm.ingredients.filter(
+        (ingredient) => ingredient !== ingredientToRemove,
+      ),
+    }))
+
+    if (formErrors.ingredients) {
+      setFormErrors((currentErrors) => ({
+        ...currentErrors,
+        ingredients: '',
+      }))
+    }
+  }
+
+  const handleIngredientInputKeyDown = (event) => {
+    if (event.key === 'Enter' || event.key === ',') {
+      event.preventDefault()
+      handleAddIngredient()
+    }
   }
 
   const handleDeleteMeal = (mealId) => {
@@ -795,18 +866,52 @@ function App() {
 
               <label>
                 Ingredients
-                <textarea
-                  name="ingredients"
-                  value={form.ingredients}
-                  onChange={handleInputChange}
-                  rows="4"
-                  placeholder="tomatoes, pasta, mozzarella"
-                  maxLength="240"
-                  aria-invalid={Boolean(formErrors.ingredients)}
-                  aria-describedby={
-                    formErrors.ingredients ? 'meal-ingredients-error' : undefined
-                  }
-                />
+                <div className="ingredient-builder">
+                  <div className="ingredient-input-row">
+                    <input
+                      type="text"
+                      name="ingredientInput"
+                      value={form.ingredientInput}
+                      onChange={handleInputChange}
+                      onKeyDown={handleIngredientInputKeyDown}
+                      placeholder="Add ingredient and press Enter"
+                      maxLength="40"
+                      aria-invalid={Boolean(formErrors.ingredients)}
+                      aria-describedby={
+                        formErrors.ingredients ? 'meal-ingredients-error' : undefined
+                      }
+                    />
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={handleAddIngredient}
+                    >
+                      Add
+                    </button>
+                  </div>
+
+                  {form.ingredients.length > 0 ? (
+                    <div className="ingredient-chip-list" aria-label="Assigned ingredients">
+                      {form.ingredients.map((ingredient) => (
+                        <span key={ingredient} className="ingredient-chip">
+                          {ingredient}
+                          <button
+                            type="button"
+                            className="ingredient-chip-remove"
+                            onClick={() => handleRemoveIngredient(ingredient)}
+                            aria-label={`Remove ${ingredient}`}
+                          >
+                            x
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="ingredient-hint">
+                      Assign at least one ingredient to this meal.
+                    </p>
+                  )}
+                </div>
                 {formErrors.ingredients && (
                   <span
                     className="field-error"
