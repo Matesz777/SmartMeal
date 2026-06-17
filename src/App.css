@@ -548,9 +548,23 @@
   justify-content: space-between;
 }
 
+.selected-day-item > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.selected-day-item strong {
+  color: #2d2118;
+  font-size: 0.92rem;
+}
+
 .selected-day-item span {
   color: #7b6c5d;
   font-size: 0.88rem;
+}
+
+.selected-day-item .meal-actions {
+  flex-shrink: 0;
 }
 
 .shopping-item input {

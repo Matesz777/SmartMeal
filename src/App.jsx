@@ -968,10 +968,28 @@ function App() {
             <div className="selected-day-list">
               {toDayView.length > 0 ? (
                 toDayView.map((meal) => (
-                  <div key={meal.id} className="selected-day-item">
-                    <strong>{meal.name}</strong>
-                    <span>{meal.category}</span>
-                  </div>
+                  <article key={meal.id} className="selected-day-item">
+                    <div>
+                      <strong>{meal.name}</strong>
+                      <span>{meal.category}</span>
+                    </div>
+                    <div className="meal-actions">
+                      <button
+                        type="button"
+                        className="ghost-button"
+                        onClick={() => handleEditMeal(meal)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="ghost-button danger"
+                        onClick={() => handleDeleteMeal(meal.id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </article>
                 ))
               ) : (
                 <p className="empty-state">This day is still empty.</p>
