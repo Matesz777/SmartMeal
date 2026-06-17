@@ -109,7 +109,8 @@
   margin-bottom: 14px;
 }
 
-.day-tabs {
+.day-tabs,
+.category-tabs {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -153,6 +154,7 @@
 }
 
 .day-tab,
+.category-tab,
 .ghost-button,
 .link-button,
 .secondary-button,
@@ -166,14 +168,16 @@
     border-color 0.18s ease;
 }
 
-.day-tab {
+.day-tab,
+.category-tab {
   min-width: 48px;
   padding: 8px 12px;
   background: #efe8dc;
   color: #544638;
 }
 
-.day-tab.active {
+.day-tab.active,
+.category-tab.active {
   background: #294c3b;
   color: #fff7eb;
 }

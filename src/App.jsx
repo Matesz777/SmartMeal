@@ -227,6 +227,7 @@ function App() {
   const [editingMealId, setEditingMealId] = useState(null)
   const [selectedDay, setSelectedDay] = useState(days[0])
   const [plannerView, setPlannerView] = useState('all')
+  const [selectedCategory, setSelectedCategory] = useState(null)
   const [shoppingFilter, setShoppingFilter] = useState('all')
   const [form, setForm] = useState(initialForm)
   const [formErrors, setFormErrors] = useState({})
@@ -318,6 +319,19 @@ function App() {
     }
   }, [meals, mealsByDay, purchasedItems, shoppingList])
 
+  const filteredMealsByDay = useMemo(() => {
+    if (!selectedCategory) {
+      return mealsByDay
+    }
+
+    return days.reduce((filtered, day) => {
+      filtered[day] = mealsByDay[day].filter(
+        (meal) => meal.category === selectedCategory,
+      )
+      return filtered
+    }, {})
+  }, [mealsByDay, selectedCategory])
+
   const filteredShoppingList = useMemo(() => {
     if (shoppingFilter === 'purchased') {
       return shoppingList.filter((item) => purchasedItems[item.id])
@@ -337,7 +351,7 @@ function App() {
       ? plannedDays[0]
       : selectedDay
 
-  const mealsForSelectedDay = mealsByDay[activeSelectedDay]
+  const mealsForSelectedDay = filteredMealsByDay[activeSelectedDay]
   const selectedDayCategories = [
     ...new Set(mealsForSelectedDay.map((meal) => meal.category)),
   ]
@@ -688,6 +702,28 @@ function App() {
                 ))}
               </div>
 
+              <div className="category-tabs" role="tablist" aria-label="Meal categories">
+                <button
+                  type="button"
+                  className={!selectedCategory ? 'category-tab active' : 'category-tab'}
+                  onClick={() => setSelectedCategory(null)}
+                >
+                  All
+                </button>
+                {mealCategories.map((category) => (
+                  <button
+                    key={category}
+                    type="button"
+                    className={
+                      selectedCategory === category ? 'category-tab active' : 'category-tab'
+                    }
+                    onClick={() => setSelectedCategory(category)}
+                  >
+                    {category}
+                  </button>
+                ))}
+              </div>
+
               <div className="day-tabs" role="tablist" aria-label="Week days">
                 {days.map((day) => (
                   <button
@@ -757,7 +793,7 @@ function App() {
                 <div className="day-column-header">
                   <div>
                     <h3>{day}</h3>
-                    <span>{mealsByDay[day].length} planned</span>
+                    <span>{filteredMealsByDay[day].length} planned</span>
                   </div>
                   <button
                     type="button"
@@ -769,8 +805,8 @@ function App() {
                 </div>
 
                 <div className="meal-list">
-                  {mealsByDay[day].length > 0 ? (
-                    mealsByDay[day].map((meal) => (
+                  {filteredMealsByDay[day].length > 0 ? (
+                    filteredMealsByDay[day].map((meal) => (
                       <article key={meal.id} className="meal-card">
                         <span className="meal-category">{meal.category}</span>
                         <h4>{meal.name}</h4>
