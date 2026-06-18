@@ -270,15 +270,17 @@ function App() {
 
   useEffect(() => {
     const validItemIds = new Set(shoppingList.map((item) => item.id))
+    // Defer state update to avoid synchronous setState inside effect
+    queueMicrotask(() => {
+      setPurchasedItems((currentItems) => {
+        const prunedItems = Object.fromEntries(
+          Object.entries(currentItems).filter(([itemId]) => validItemIds.has(itemId)),
+        )
 
-    setPurchasedItems((currentItems) => {
-      const prunedItems = Object.fromEntries(
-        Object.entries(currentItems).filter(([itemId]) => validItemIds.has(itemId)),
-      )
-
-      return Object.keys(prunedItems).length === Object.keys(currentItems).length
-        ? currentItems
-        : prunedItems
+        return Object.keys(prunedItems).length === Object.keys(currentItems).length
+          ? currentItems
+          : prunedItems
+      })
     })
   }, [shoppingList])
 
